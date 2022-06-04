@@ -1,6 +1,7 @@
 ﻿using g2yx.Models;
 using Google.Apis.Auth.AspNetCore3;
 using Google.Apis.PhotosLibrary.v1;
+using Google.Apis.PhotosLibrary.v1.Data;
 using Google.Apis.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -8,6 +9,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -25,7 +28,7 @@ namespace g2yx.Controllers
             _googleAuth = googleAuth;
         }
 
-        public async Task<IActionResult> Index(CancellationToken ct)
+        public async Task<ViewResult> Index(CancellationToken ct)
         {
             var creds = await _googleAuth.GetCredentialAsync(cancellationToken: ct);
             var plSvc = new PhotosLibraryService(new BaseClientService.Initializer
@@ -33,12 +36,74 @@ namespace g2yx.Controllers
                 HttpClientInitializer = creds
             });
 
-            var albumsResource = await plSvc.Albums.List().ExecuteAsync();
-            var albumTitles = albumsResource.Albums.Select(x => x.Title).ToList();
+            var allAlbums = new List<AlbumMeta>();
+            string nextPageToken = null;
 
-            ViewData["AlbumTitles"] = albumTitles;
+            do
+            {
+                var albumsRequest = plSvc.Albums.List();
+                albumsRequest.PageToken = nextPageToken;
+                var albumsResource = await albumsRequest.ExecuteAsync(ct);
+                allAlbums.AddRange(albumsResource.Albums.Select(x => new AlbumMeta(x.Id, x.Title)));
+                nextPageToken = albumsResource.NextPageToken;
+            } while (!string.IsNullOrEmpty(nextPageToken));
 
-            return View();
+            return View(allAlbums);
+        }
+
+        [HttpGet("Albums/{albumId}")]
+        public async Task<IActionResult> Album(string albumId, CancellationToken ct)
+        {
+            var creds = await _googleAuth.GetCredentialAsync(cancellationToken: ct);
+            var plSvc = new PhotosLibraryService(new BaseClientService.Initializer
+            {
+                HttpClientInitializer = creds
+            });
+
+            var album = await plSvc.Albums.Get(albumId).ExecuteAsync(ct);
+
+            var allItemIds = new List<string>();
+            string nextPageToken = null;
+
+            do
+            {
+                var itemsRequest = plSvc.MediaItems.Search(new SearchMediaItemsRequest
+                {
+                    AlbumId = albumId,
+                    PageSize = 100,
+                    PageToken = nextPageToken
+                });
+
+                var itemsResponse = await itemsRequest.ExecuteAsync(ct);
+                nextPageToken = itemsResponse.NextPageToken;
+
+                allItemIds.AddRange(itemsResponse.MediaItems.Select(x => x.Id));
+            } while (!string.IsNullOrEmpty(nextPageToken));
+
+            return View(new Models.Album(album.Title, allItemIds));
+        }
+
+        [HttpGet("Photos/{photoId}")]
+        public async Task<IActionResult> Photo(string photoId, CancellationToken ct)
+        {
+            var creds = await _googleAuth.GetCredentialAsync(cancellationToken: ct);
+            var plSvc = new PhotosLibraryService(new BaseClientService.Initializer
+            {
+                HttpClientInitializer = creds
+            });
+
+            var photo = await plSvc.MediaItems.Get(photoId).ExecuteAsync(ct);
+
+            if (photo.MediaMetadata.Photo == null)
+                return NotFound();
+
+            var width = photo.MediaMetadata.Width;
+            var height = photo.MediaMetadata.Height;
+
+            using var http = new HttpClient();
+            
+            var photoStream = await http.GetStreamAsync(photo.BaseUrl + $"=w{width}-h{height}");
+            return new FileStreamResult(photoStream, photo.MimeType);
         }
 
         public IActionResult Privacy()

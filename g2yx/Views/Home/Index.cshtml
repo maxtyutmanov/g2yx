@@ -1,14 +1,18 @@
-﻿@{
+﻿@model System.Collections.Generic.IReadOnlyCollection<AlbumMeta> 
+
+@{
     ViewData["Title"] = "Home Page";
 }
 
 <div class="text-center">
     <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://docs.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+    <p>Hello. Check out your Google photo albums!</p>
     <ul>
-        @foreach (string albumTitle in ViewData["AlbumTitles"] as IEnumerable<string>)
+        @foreach (var albumMeta in Model.Where(x => !string.IsNullOrEmpty(x.Title)))
         {
-            <li>@albumTitle</li>
+            <li>
+                @Html.ActionLink(albumMeta.Title, "Album", routeValues: new { albumId = albumMeta.Id })
+            </li>
         }
     </ul>
 </div>

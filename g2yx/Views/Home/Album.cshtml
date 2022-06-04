@@ -1,0 +1,18 @@
+﻿@model Album
+
+@{
+    ViewData["Title"] = Model.Title;
+}
+
+<div class="text-center">
+    <h1 class="display-4">Welcome</h1>
+    <p>@Model.Title</p>
+    <div>
+        @foreach (var photoId in Model.PhotoIds)
+        {
+            <div>
+                <img src="@Url.ActionLink(action: "Photo", values: new { photoId })" alt="No image..." />
+            </div>
+        }
+    </div>
+</div>
