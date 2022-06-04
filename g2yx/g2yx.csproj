@@ -8,6 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Gkmo.Google.Apis.PhotosLibrary.v1" Version="1.36.1.1471" />
+    <PackageReference Include="Google.Apis.Auth.AspNetCore3" Version="1.57.0" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.10.9" />
   </ItemGroup>
 
