@@ -9,6 +9,8 @@ namespace g2yx.Models
     {
         public bool LoggedInYandex { get; set; }
 
+        public SyncProgress Progress { get; set; }
+
         public List<AlbumMeta> Albums { get; set; }
     }
 }

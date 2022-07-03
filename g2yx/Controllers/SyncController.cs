@@ -28,61 +28,57 @@ namespace g2yx.Controllers
             _googleAuth = googleAuth;
         }
 
-        [HttpPost("Index/{albumId}")]
-        public async Task<IActionResult> Index([FromRoute] string albumId, CancellationToken ct)
-        {
-            await SyncAlbum(albumId, ct);
-            return Ok();
-        }
-
-        private async Task SyncAlbum(string albumId, CancellationToken ct)
+        [HttpGet("Index")]
+        public async Task<IActionResult> Index(CancellationToken ct)
         {
             var creds = await _googleAuth.GetCredentialAsync(cancellationToken: ct);
             var gAccessToken = await creds.UnderlyingCredential.GetAccessTokenForRequestAsync(cancellationToken: ct);
             var yAccessToken = await HttpContext.GetTokenAsync("yandex_cookie", "access_token");
 
-            BackgroundJob.Enqueue(() => SyncAlbum(albumId, gAccessToken, yAccessToken, default));
+            BackgroundJob.Enqueue<SyncJob>(job => job.Execute(gAccessToken, yAccessToken, ct));
+
+            return RedirectToAction("Index", "Home");
         }
 
-        public async Task SyncAlbum(string albumId, string gAccessToken, string yAccessToken, CancellationToken ct = default)
-        {
-            var creds = GoogleCredential.FromAccessToken(gAccessToken);
-            var googleApi = new GooglePhotosApi(creds);
+        //public async Task SyncAlbum(string albumId, string gAccessToken, string yAccessToken, CancellationToken ct = default)
+        //{
+        //    var creds = GoogleCredential.FromAccessToken(gAccessToken);
+        //    var googleApi = new GooglePhotosApi(creds);
             
-            using var plSvc = new PhotosLibraryService(new BaseClientService.Initializer
-            {
-                HttpClientInitializer = creds
-            });
+        //    using var plSvc = new PhotosLibraryService(new BaseClientService.Initializer
+        //    {
+        //        HttpClientInitializer = creds
+        //    });
 
-            var album = await plSvc.Albums.Get(albumId).ExecuteAsync(ct);
+        //    var album = await plSvc.Albums.Get(albumId).ExecuteAsync(ct);
 
-            var sanitizedAlbumTitle = album.Title.Replace("/", "\\/");
+        //    var sanitizedAlbumTitle = album.Title.Replace("/", "\\/");
 
-            using var http = new HttpClient();
-            http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("OAuth", yAccessToken);
+        //    using var http = new HttpClient();
+        //    http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("OAuth", yAccessToken);
 
-            var encodedPath = WebUtility.UrlEncode($"/Albums/{sanitizedAlbumTitle}");
-            var yResp = await http.PutAsync($"https://cloud-api.yandex.net/v1/disk/resources?path={encodedPath}", null);
+        //    var encodedPath = WebUtility.UrlEncode($"/Albums/{sanitizedAlbumTitle}");
+        //    var yResp = await http.PutAsync($"https://cloud-api.yandex.net/v1/disk/resources?path={encodedPath}", null);
 
-            var yRespContent = await yResp.Content?.ReadAsStringAsync();
+        //    var yRespContent = await yResp.Content?.ReadAsStringAsync();
 
-            if (yResp.StatusCode != HttpStatusCode.OK)
-            {
-                // folder already exists, just skip
-            }
+        //    if (yResp.StatusCode != HttpStatusCode.OK)
+        //    {
+        //        // folder already exists, just skip
+        //    }
 
-            await foreach (var photo in googleApi.ReadAlbumPhotos(albumId, ct).WithCancellation(ct))
-            {
-                var sanitizedName = photo.Name.Replace("/", "\\/");
-                var photoEncodedPath = WebUtility.UrlEncode($"/Albums/{sanitizedAlbumTitle}/{sanitizedName}");
-                yRespContent = await http.GetStringAsync($"https://cloud-api.yandex.net/v1/disk/resources/upload?path={photoEncodedPath}&overwrite=true");
+        //    await foreach (var photo in googleApi.ReadAlbumPhotos(albumId, ct).WithCancellation(ct))
+        //    {
+        //        var sanitizedName = photo.Name.Replace("/", "\\/");
+        //        var photoEncodedPath = WebUtility.UrlEncode($"/Albums/{sanitizedAlbumTitle}/{sanitizedName}");
+        //        yRespContent = await http.GetStringAsync($"https://cloud-api.yandex.net/v1/disk/resources/upload?path={photoEncodedPath}&overwrite=true");
 
-                var uploadUrl = JsonConvert.DeserializeObject<JObject>(yRespContent)["href"].Value<string>();
+        //        var uploadUrl = JsonConvert.DeserializeObject<JObject>(yRespContent)["href"].Value<string>();
 
-                var result = await http.PutAsync(uploadUrl, new ByteArrayContent(photo.Content));
+        //        var result = await http.PutAsync(uploadUrl, new ByteArrayContent(photo.Content));
 
-                result.EnsureSuccessStatusCode();
-            }
-        }
+        //        result.EnsureSuccessStatusCode();
+        //    }
+        //}
     }
 }

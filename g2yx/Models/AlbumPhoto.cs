@@ -10,5 +10,9 @@ namespace g2yx.Models
         public byte[] Content { get; set; }
 
         public string Name { get; set; }
+
+        public DateTime CreationDateTime { get; set; }
+
+        public string Etag { get; set; }
     }
 }

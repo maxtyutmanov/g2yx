@@ -1,4 +1,5 @@
 ﻿using g2yx.Models;
+using g2yx.Services;
 using Google.Apis.Auth.AspNetCore3;
 using Google.Apis.PhotosLibrary.v1;
 using Google.Apis.PhotosLibrary.v1.Data;
@@ -57,7 +58,10 @@ namespace g2yx.Controllers
 
             var yxToken = await HttpContext.GetTokenAsync("yandex_cookie", "access_token");
             model.LoggedInYandex = !string.IsNullOrEmpty(yxToken);
-
+            if (model.LoggedInYandex)
+            {
+                model.Progress = await new YandexDiskApi(yxToken).GetSyncProgress(ct);
+            }
             return View(model);
         }
 
