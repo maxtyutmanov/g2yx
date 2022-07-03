@@ -10,6 +10,7 @@ namespace g2yx.Services
 {
     public class SyncJob
     {
+        private const int ProgressUpdatePeriod = 25;
         private readonly ILogger<SyncJob> _logger;
 
         public SyncJob(ILogger<SyncJob> logger)
@@ -31,16 +32,16 @@ namespace g2yx.Services
             await yApi.EnsureLocked(ct);
             var lockLastUpdatedAt = DateTime.UtcNow;
 
-            var (lastSyncedDate, lastSyncedEtag) = await yApi.GetLastSyncedItemInfo(ct);
+            var lastSyncedDate = await yApi.GetLastSyncedDate(ct);
 
             var counter = 0;
 
-            var notYetSyncedItems = gApi.GetAllItems(lastSyncedDate ?? DateTime.MinValue, lastSyncedEtag, ct);
+            var notYetSyncedItems = gApi.GetAllItems(lastSyncedDate ?? DateTime.MinValue, ct);
             await foreach (var photo in gApi.ReadPhotos(notYetSyncedItems, ct).WithCancellation(ct))
             {
                 await yApi.UploadPhoto(photo, ct);
-                if (++counter % 100 == 0)
-                    await yApi.SetLastSyncedItemInfo(photo.CreationDateTime, photo.Etag, ct);
+                if (++counter % ProgressUpdatePeriod == 0)
+                    await yApi.SetLastSyncedDate(photo.CreationDateTime, ct);
 
                 if ((DateTime.UtcNow - lockLastUpdatedAt).TotalSeconds > YandexDiskApi.LockExpiration.TotalSeconds / 2)
                 {

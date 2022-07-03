@@ -47,7 +47,7 @@ namespace g2yx.Services
 
         public async Task<SyncProgress> GetSyncProgress(CancellationToken ct)
         {
-            var (lastSyncedDate, _) = await GetLastSyncedItemInfo(ct);
+            var lastSyncedDate = await GetLastSyncedDate(ct);
             var isRunning = await IsLocked(ct);
 
             return new SyncProgress
@@ -57,28 +57,25 @@ namespace g2yx.Services
             };
         }
 
-        public async Task<(DateTime? lastSyncedDate, string lastSyncedEtag)> GetLastSyncedItemInfo(CancellationToken ct)
+        public async Task<DateTime?> GetLastSyncedDate(CancellationToken ct)
         {
             var customProps = await GetCustomProps(GPhotoFolderPath, ct);
-            if (customProps.TryGetValue("sync_cursor", out var cursorToken) && (cursorToken is JObject cursor))
+            if (customProps.TryGetValue("last_synced_date", out var lastSyncedDateToken))
             {
-                return (new DateTime(cursor["date"].Value<long>(), DateTimeKind.Utc), cursor["etag"].Value<string>());
+                var ticks = lastSyncedDateToken.Value<long>();
+                return new DateTime(ticks, DateTimeKind.Utc);
             }
 
-            return (null, null);
+            return null;
         }
 
-        public async Task SetLastSyncedItemInfo(DateTime lastSyncedDate, string lastSyncedEtag, CancellationToken ct)
+        public async Task SetLastSyncedDate(DateTime lastSyncedDate, CancellationToken ct)
         {
             var content = new
             {
                 custom_properties = new
                 {
-                    sync_cursor = new
-                    {
-                        date = lastSyncedDate.Ticks,
-                        etag = lastSyncedEtag
-                    }
+                    last_synced_date = lastSyncedDate.Ticks
                 }
             };
             var contentStr = JsonConvert.SerializeObject(content);

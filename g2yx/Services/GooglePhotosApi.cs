@@ -29,9 +29,8 @@ namespace g2yx.Services
             });
         }
 
-        public async IAsyncEnumerable<MediaItem> GetAllItems(DateTime startDate, string startEtag, CancellationToken ct)
+        public async IAsyncEnumerable<MediaItem> GetAllItems(DateTime startDate, CancellationToken ct)
         {
-            bool navigatedToStartEtag = (startEtag == null);
             string nextPageToken = null;
 
             do
@@ -61,14 +60,7 @@ namespace g2yx.Services
 
                 foreach (var item in itemsResponse.MediaItems)
                 {
-                    if (navigatedToStartEtag)
-                    {
-                        yield return item;
-                    }
-                    else if (item.ETag == startEtag)
-                    {
-                        navigatedToStartEtag = true;
-                    }
+                    yield return item;
                 }
 
             } while (!string.IsNullOrEmpty(nextPageToken));
