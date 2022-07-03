@@ -1,4 +1,4 @@
-﻿@model System.Collections.Generic.IReadOnlyCollection<AlbumMeta> 
+﻿@model IndexModel
 
 @{
     ViewData["Title"] = "Home Page";
@@ -7,12 +7,27 @@
 <div class="text-center">
     <h1 class="display-4">Welcome</h1>
     <p>Hello. Check out your Google photo albums!</p>
-    <ul>
-        @foreach (var albumMeta in Model.Where(x => !string.IsNullOrEmpty(x.Title)))
+    <div>
+        @if (!Model.LoggedInYandex)
         {
-            <li>
-                @Html.ActionLink(albumMeta.Title, "Album", routeValues: new { albumId = albumMeta.Id })
-            </li>
+            @Html.ActionLink("Log in to Yandex", "LoginWithYandex")
         }
-    </ul>
+    </div>
+    <table>
+        @foreach (var albumMeta in Model.Albums.Where(x => !string.IsNullOrEmpty(x.Title)))
+        {
+            <tr>
+                <td>
+                    @Html.ActionLink(albumMeta.Title, "Album", routeValues: new { albumId = albumMeta.Id })
+                </td>
+                <td>
+                    @if (Model.LoggedInYandex)
+                    @using (Html.BeginForm("Index", "Sync", new { albumId = albumMeta.Id }))
+                    {
+                        <input type="submit" value="GO!" />
+                    }
+                </td>
+            </tr>
+        }
+    </table>
 </div>

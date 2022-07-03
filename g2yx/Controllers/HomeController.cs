@@ -3,6 +3,8 @@ using Google.Apis.Auth.AspNetCore3;
 using Google.Apis.PhotosLibrary.v1;
 using Google.Apis.PhotosLibrary.v1.Data;
 using Google.Apis.Services;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
@@ -48,7 +50,26 @@ namespace g2yx.Controllers
                 nextPageToken = albumsResource.NextPageToken;
             } while (!string.IsNullOrEmpty(nextPageToken));
 
-            return View(allAlbums);
+            var model = new IndexModel
+            {
+                Albums = allAlbums
+            };
+
+            var yxToken = await HttpContext.GetTokenAsync("yandex_cookie", "access_token");
+            model.LoggedInYandex = !string.IsNullOrEmpty(yxToken);
+
+            return View(model);
+        }
+
+        [HttpGet("Login/Yandex")]
+        public IActionResult LoginWithYandex()
+        {
+            return Challenge(
+                new AuthenticationProperties()
+                {
+                    RedirectUri = Url.Action("Index")
+                },
+                "yandex_cookie");
         }
 
         [HttpGet("Albums/{albumId}")]

@@ -11,6 +11,9 @@ using System.Threading.Tasks;
 using Google.Apis.Auth;
 using Google.Apis.Auth.AspNetCore3;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using System.Security.Claims;
+using Hangfire;
+using Hangfire.InMemory;
 
 namespace g2yx
 {
@@ -42,12 +45,34 @@ namespace g2yx
                     o.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
                 })
                 .AddCookie()
+                .AddCookie("yandex_cookie", o =>
+                {
+                    o.ForwardChallenge = "yandex";
+                    o.Cookie.Name += ".Yandex";
+                })
                 .AddGoogleOpenIdConnect(options =>
                 {
                     options.ClientId = Configuration["GoogleAuth:ClientId"];
                     options.ClientSecret = Configuration["GoogleAuth:ClientSecret"];
                     options.CallbackPath = "/signin-google";
+                })
+                .AddOAuth("yandex", options =>
+                {
+                    options.ClientId = Configuration["YandexDisk:ClientId"];
+                    options.ClientSecret = Configuration["YandexDisk:ClientSecret"];
+                    options.SaveTokens = true;
+                    options.AuthorizationEndpoint = Configuration["YandexDisk:BaseAuthUrl"] + "/authorize";
+                    options.TokenEndpoint = Configuration["YandexDisk:BaseAuthUrl"] + "/token";
+                    options.CallbackPath = "/signin-yandex";
+                    options.SignInScheme = "yandex_cookie";
                 });
+
+            services.AddHangfire(c => 
+            { 
+                c.UseStorage(new InMemoryStorage()); 
+            });
+            services.AddHangfireServer();
+            
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -70,6 +95,8 @@ namespace g2yx
 
             app.UseAuthentication();
             app.UseAuthorization();
+
+            app.UseHangfireDashboard();
 
             app.UseEndpoints(endpoints =>
             {

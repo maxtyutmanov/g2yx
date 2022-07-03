@@ -10,6 +10,9 @@
   <ItemGroup>
     <PackageReference Include="Gkmo.Google.Apis.PhotosLibrary.v1" Version="1.36.1.1471" />
     <PackageReference Include="Google.Apis.Auth.AspNetCore3" Version="1.57.0" />
+    <PackageReference Include="hangfire" Version="1.7.30" />
+    <PackageReference Include="hangfire.console" Version="1.4.2" />
+    <PackageReference Include="hangfire.inmemory" Version="0.3.4" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.10.9" />
   </ItemGroup>
 
