@@ -18,7 +18,7 @@ namespace g2yx.Services
             _takeoutDir = takeoutDir;
         }
 
-        public async IAsyncEnumerable<AlbumPhoto> ReadPhotos(string syncPointer, [EnumeratorCancellation] CancellationToken ct)
+        public async IAsyncEnumerable<AlbumPhoto> Read(string syncPointer, [EnumeratorCancellation] CancellationToken ct)
         {
             var prevSyncPointer = SyncPointer.Parse(syncPointer);
 

@@ -23,6 +23,7 @@ namespace g2yx.Services
         {
             _http = new HttpClient();
             _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("OAuth", accessToken);
+            _http.Timeout = TimeSpan.FromMinutes(10);
         }
 
         public async Task<bool> IsLocked(CancellationToken ct)
@@ -72,7 +73,7 @@ namespace g2yx.Services
             await UploadFile($"{GPhotoFolderPath}/sync_pointer", fileBytes, ct);
         }
 
-        public async Task UploadPhoto(AlbumPhoto photo, CancellationToken ct)
+        public async Task Write(AlbumPhoto photo, CancellationToken ct)
         {
             var photoEncodedPath = Encode($"{GPhotoFolderPath}/{Sanitize(photo.Name)}");
             await UploadFile(photoEncodedPath, photo.Content, ct);

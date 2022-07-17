@@ -10,6 +10,6 @@ namespace g2yx.Services
 {
     public interface IPhotosReader
     {
-        IAsyncEnumerable<AlbumPhoto> ReadPhotos(string syncPointer, [EnumeratorCancellation] CancellationToken ct);
+        IAsyncEnumerable<AlbumPhoto> Read(string syncPointer, [EnumeratorCancellation] CancellationToken ct);
     }
 }

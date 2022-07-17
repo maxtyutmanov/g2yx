@@ -43,7 +43,7 @@ namespace g2yx.Services
             };
         }
 
-        public async IAsyncEnumerable<AlbumPhoto> ReadPhotos(string syncPointer, [EnumeratorCancellation] CancellationToken ct)
+        public async IAsyncEnumerable<AlbumPhoto> Read(string syncPointer, [EnumeratorCancellation] CancellationToken ct)
         {
             DateTime? startDate = null;
 

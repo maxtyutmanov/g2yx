@@ -1,7 +1,8 @@
-﻿using Google.Apis.Auth.OAuth2;
+﻿using g2yx.Models;
+using g2yx.Services.Utils;
+using Google.Apis.Auth.OAuth2;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -9,7 +10,9 @@ namespace g2yx.Services
 {
     public class SyncJob
     {
-        private const int ProgressUpdatePeriod = 25;
+        private static readonly TimeSpan ProgressUpdatePeriod = TimeSpan.FromMinutes(1);
+        private static readonly int DegreeOfUploadParallelism = 5;
+
         private readonly ILogger<SyncJob> _logger;
 
         public SyncJob(ILogger<SyncJob> logger)
@@ -36,6 +39,9 @@ namespace g2yx.Services
 
         private async Task Sync(IPhotosReader reader, IPhotosWriter writer, CancellationToken ct)
         {
+            var lockLastUpdatedAt = DateTime.UtcNow;
+            var progressLastUpdatedAt = DateTime.UtcNow;
+
             if (await writer.IsLocked(ct))
             {
                 _logger.LogWarning("Writer is locked. Sync will not be performed");
@@ -43,28 +49,37 @@ namespace g2yx.Services
             }
 
             await writer.EnsureLocked(ct);
-            var lockLastUpdatedAt = DateTime.UtcNow;
-
+            
             var syncPointer = await writer.GetSyncPointer(ct);
 
             _logger.LogInformation("Starting sync. Previous sync pointer value: {SyncPointer}", syncPointer);
 
-            var counter = 0;
+            var processedPhotosStream = reader.Read(syncPointer, ct)
+                .ProcessInParallel(UploadOnePhoto, degreeOfParallelism: 10, ct)
+                .MakeOrdered(ct)
+                .WithCancellation(ct);
 
-            await foreach (var photo in reader.ReadPhotos(syncPointer, ct).WithCancellation(ct))
+            await foreach (var photo in processedPhotosStream)
             {
-                await writer.UploadPhoto(photo, ct);
-                if (++counter % ProgressUpdatePeriod == 0)
+                if ((DateTime.UtcNow - progressLastUpdatedAt) > ProgressUpdatePeriod)
                 {
-                    _logger.LogInformation("Synchronized {SyncedPhotosCount} photos", counter);
-                    await writer.SetSyncPointer(photo.SyncPointer, ct);
+                    _logger.LogInformation("Updating progress (setting current sync pointer value to {SyncPointer})", photo.SyncPointer);
+                    await writer.SetSyncPointer(photo.SyncPointer.ToString(), ct);
+                    // refresh lock if we're halfway to expiration
+                    await writer.EnsureLocked(ct);
                 }
+            }
 
+            async Task UploadOnePhoto(AlbumPhoto photo)
+            {
+                await writer.Write(photo, ct);
+
+                // refresh lock if we're halfway to expiration
                 if ((DateTime.UtcNow - lockLastUpdatedAt).TotalSeconds > YandexDiskApi.LockExpiration.TotalSeconds / 2)
                 {
                     _logger.LogInformation("Refreshing the lock for yandex disk");
-                    // refresh lock if we're halfway to expiration
                     await writer.EnsureLocked(ct);
+                    lockLastUpdatedAt = DateTime.UtcNow;
                 }
             }
         }

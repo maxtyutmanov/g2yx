@@ -11,6 +11,6 @@ namespace g2yx.Services
         Task<SyncProgress> GetSyncProgress(CancellationToken ct);
         Task<string> GetSyncPointer(CancellationToken ct);
         Task SetSyncPointer(string syncPointer, CancellationToken ct);
-        Task UploadPhoto(AlbumPhoto photo, CancellationToken ct);
+        Task Write(AlbumPhoto photo, CancellationToken ct);
     }
 }
