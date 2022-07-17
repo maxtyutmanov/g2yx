@@ -7,12 +7,17 @@ namespace g2yx.Models
 {
     public class AlbumPhoto
     {
-        public byte[] Content { get; set; }
+        public byte[] Content { get; }
 
-        public string Name { get; set; }
+        public string Name { get; }
 
-        public DateTime CreationDateTime { get; set; }
+        public string SyncPointer { get; }
 
-        public string Etag { get; set; }
+        public AlbumPhoto(byte[] content, string name, string syncPointer)
+        {
+            Content = content;
+            Name = name;
+            SyncPointer = syncPointer;
+        }
     }
 }

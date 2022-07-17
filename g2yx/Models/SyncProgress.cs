@@ -7,7 +7,7 @@ namespace g2yx.Models
 {
     public class SyncProgress
     {
-        public DateTime? LastSyncedDate { get; set; }
+        public string SyncPointer { get; set; }
 
         public bool IsRunning { get; set; }
     }

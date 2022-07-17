@@ -7,35 +7,32 @@
 <div class="text-center">
     <h1 class="display-4">Welcome</h1>
     <div>
-        @if (Model.LoggedInYandex)
-        {
-            <div>Last synced item timestamp: @Model.Progress.LastSyncedDate</div>
-            @if (Model.Progress.IsRunning)
-            {
-                <div>
-                    <span>Sync is running. </span>
-                    @if (Model.Progress.LastSyncedDate != null)
-                    {
-                        <span>Last synced item date: @Model.Progress.LastSyncedDate</span>
-                    }
-                </div>
-            }
-            else
-            {
-                <div><span>Sync is not running. </span>@Html.ActionLink("Start/resume sync", "Index", "Sync")</div>
-            }
-        }
-        else
+        @if (!Model.LoggedInYandex)
         {
             @Html.ActionLink("Log in to Yandex", "LoginWithYandex")
         }
-    </div>
-    <ul>
-        @foreach (var albumMeta in Model.Albums.Where(x => !string.IsNullOrEmpty(x.Title)))
+        else
         {
-            <li>
-                @Html.ActionLink(albumMeta.Title, "Album", routeValues: new { albumId = albumMeta.Id })
-            </li>
+            <div>
+                <div>Last synced item pointer: @Model.Progress.SyncPointer</div>
+            </div>
+            @if (Model.Progress.IsRunning)
+            {
+                <div>Sync is running.</div>
+            }
+            else
+            {
+                <div>Sync is not running.</div>
+                @using (Html.BeginForm("Index", "Sync", FormMethod.Get))
+                {
+                    <div>
+                        <input type="text" name="takeoutDirPath" />
+                    </div>
+                    <div>
+                        <input type="submit" name="submit" value="Run!" />
+                    </div>
+                }
+            }
         }
-    </ul>
+    </div>
 </div>

@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace g2yx.Services
 {
-    public class YandexDiskApi : IDisposable
+    public class YandexDiskApi : IPhotosWriter, IDisposable
     {
         private const string GPhotoFolderPath = "/Google Photo All";
         private const string GPhotoLockFilePath = "/Google Photo All/lock";
@@ -47,45 +47,30 @@ namespace g2yx.Services
 
         public async Task<SyncProgress> GetSyncProgress(CancellationToken ct)
         {
-            var lastSyncedDate = await GetLastSyncedDate(ct);
+            var lastSyncedDate = await GetSyncPointer(ct);
             var isRunning = await IsLocked(ct);
 
             return new SyncProgress
             {
                 IsRunning = isRunning,
-                LastSyncedDate = lastSyncedDate
+                SyncPointer = lastSyncedDate
             };
         }
 
-        public async Task<DateTime?> GetLastSyncedDate(CancellationToken ct)
+        public async Task<string> GetSyncPointer(CancellationToken ct)
         {
-            var customProps = await GetCustomProps(GPhotoFolderPath, ct);
-            if (customProps.TryGetValue("last_synced_date", out var lastSyncedDateToken))
-            {
-                var ticks = lastSyncedDateToken.Value<long>();
-                return new DateTime(ticks, DateTimeKind.Utc);
-            }
+            var fileBytes = await DownloadFile($"{GPhotoFolderPath}/sync_pointer", ct);
+            if (fileBytes == null)
+                return null;
 
-            return null;
+            var fileString = Encoding.UTF8.GetString(fileBytes);
+            return fileString;
         }
 
-        public async Task SetLastSyncedDate(DateTime lastSyncedDate, CancellationToken ct)
+        public async Task SetSyncPointer(string syncPointer, CancellationToken ct)
         {
-            var content = new
-            {
-                custom_properties = new
-                {
-                    last_synced_date = lastSyncedDate.Ticks
-                }
-            };
-            var contentStr = JsonConvert.SerializeObject(content);
-
-            var response = await _http.PatchAsync(
-                $"https://cloud-api.yandex.net/v1/disk/resources?path={Encode(GPhotoFolderPath)}",
-                new StringContent(contentStr, Encoding.UTF8, "application/json"),
-                ct);
-
-            response.EnsureSuccessStatusCode();
+            var fileBytes = Encoding.UTF8.GetBytes(syncPointer);
+            await UploadFile($"{GPhotoFolderPath}/sync_pointer", fileBytes, ct);
         }
 
         public async Task UploadPhoto(AlbumPhoto photo, CancellationToken ct)
@@ -116,16 +101,6 @@ namespace g2yx.Services
             var uploadUrl = yResp["href"].Value<string>();
             var result = await _http.PutAsync(uploadUrl, new ByteArrayContent(bytes));
             result.EnsureSuccessStatusCode();
-        }
-
-        private async Task<JObject> GetCustomProps(string path, CancellationToken ct)
-        {
-            var response = await GetJObject(
-                $"https://cloud-api.yandex.net/v1/disk/resources?path={Encode(path)}&fields=custom_properties",
-                ct);
-
-            var customProps = (JObject)response["custom_properties"];
-            return customProps ?? new JObject();
         }
 
         private async Task<JObject> GetJObject(string url, CancellationToken ct)
