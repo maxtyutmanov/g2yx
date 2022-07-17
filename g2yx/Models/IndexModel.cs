@@ -7,7 +7,9 @@ namespace g2yx.Models
 {
     public class IndexModel
     {
-        public bool LoggedInYandex { get; set; }
+        public string YandexAccessToken { get; set; }
+
+        public bool LoggedInYandex => !string.IsNullOrEmpty(YandexAccessToken);
 
         public SyncProgress Progress { get; set; }
     }

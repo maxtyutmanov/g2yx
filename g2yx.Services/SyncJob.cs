@@ -1,7 +1,6 @@
 ﻿using Google.Apis.Auth.OAuth2;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -47,6 +46,8 @@ namespace g2yx.Services
             var lockLastUpdatedAt = DateTime.UtcNow;
 
             var syncPointer = await writer.GetSyncPointer(ct);
+
+            _logger.LogInformation("Starting sync. Previous sync pointer value: {SyncPointer}", syncPointer);
 
             var counter = 0;
 

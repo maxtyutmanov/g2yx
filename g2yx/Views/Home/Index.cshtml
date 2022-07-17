@@ -14,6 +14,9 @@
         else
         {
             <div>
+                <span>Yandex access token: @Model.YandexAccessToken</span>
+            </div>
+            <div>
                 <div>Last synced item pointer: @Model.Progress.SyncPointer</div>
             </div>
             @if (Model.Progress.IsRunning)

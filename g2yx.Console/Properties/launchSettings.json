@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "g2yx.ConsoleApp": {
+      "commandName": "Project"
+    },
+    "Docker": {
+      "commandName": "Docker"
+    }
+  }
+}

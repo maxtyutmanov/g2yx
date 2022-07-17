@@ -1,6 +1,5 @@
 ﻿using g2yx.Models;
 using Google.Apis.Auth.OAuth2;
-using Google.Apis.Drive.v3;
 using Google.Apis.PhotosLibrary.v1;
 using Google.Apis.PhotosLibrary.v1.Data;
 using Google.Apis.Services;
@@ -68,7 +67,7 @@ namespace g2yx.Services
                 var width = item.MediaMetadata.Width;
                 var height = item.MediaMetadata.Height;
 
-                var photoStream = await http.GetStreamAsync(item.BaseUrl + $"=w{width}-h{height}=d", ct);
+                var photoStream = await http.GetStreamAsync(item.BaseUrl + $"=w{width}-h{height}=d");
                 using var ms = new MemoryStream();
                 await photoStream.CopyToAsync(ms, ct);
 

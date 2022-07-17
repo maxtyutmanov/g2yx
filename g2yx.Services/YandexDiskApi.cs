@@ -1,5 +1,4 @@
 ﻿using g2yx.Models;
-using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -91,7 +90,7 @@ namespace g2yx.Services
                 return null;
 
             var downloadUrl = yResp["href"].Value<string>();
-            var content = await _http.GetByteArrayAsync(downloadUrl, ct);
+            var content = await _http.GetByteArrayAsync(downloadUrl);
             return content;
         }
 
@@ -111,7 +110,7 @@ namespace g2yx.Services
 
             response.EnsureSuccessStatusCode();
 
-            var responseContent = await response.Content.ReadAsStringAsync(ct);
+            var responseContent = await response.Content.ReadAsStringAsync();
 
             return JsonConvert.DeserializeObject<JObject>(responseContent);
         }
