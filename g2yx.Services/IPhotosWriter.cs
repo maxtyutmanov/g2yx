@@ -12,5 +12,6 @@ namespace g2yx.Services
         Task<string> GetSyncPointer(CancellationToken ct);
         Task SetSyncPointer(string syncPointer, CancellationToken ct);
         Task Write(AlbumPhoto photo, CancellationToken ct);
+        Task EnsureSubfolderCreated(string name, CancellationToken ct);
     }
 }

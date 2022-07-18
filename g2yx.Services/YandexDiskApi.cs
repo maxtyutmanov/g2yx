@@ -1,7 +1,10 @@
 ﻿using g2yx.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Polly;
+using Polly.Extensions.Http;
 using System;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -16,14 +19,16 @@ namespace g2yx.Services
         private const string GPhotoFolderPath = "/Google Photo All";
         private const string GPhotoLockFilePath = "/Google Photo All/lock";
         public static readonly TimeSpan LockExpiration = TimeSpan.FromMinutes(5);
-        
+
         private readonly HttpClient _http;
+        private readonly IAsyncPolicy<HttpResponseMessage> _uploadRetryPolicy;
 
         public YandexDiskApi(string accessToken)
         {
             _http = new HttpClient();
             _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("OAuth", accessToken);
-            _http.Timeout = TimeSpan.FromMinutes(10);
+            _http.Timeout = TimeSpan.FromMinutes(30);
+            _uploadRetryPolicy = GetRetryPolicyForUpload();
         }
 
         public async Task<bool> IsLocked(CancellationToken ct)
@@ -73,15 +78,36 @@ namespace g2yx.Services
             await UploadFile($"{GPhotoFolderPath}/sync_pointer", fileBytes, ct);
         }
 
+        public async Task EnsureSubfolderCreated(string name, CancellationToken ct)
+        {
+            name = $"{GPhotoFolderPath}/{name}";
+
+            var response = await _http.PutAsync(
+                $"https://cloud-api.yandex.net/v1/disk/resources?path={Encode(name)}", new StringContent(""), ct);
+
+            if (response.StatusCode == HttpStatusCode.Conflict)
+                return;
+
+            response.EnsureSuccessStatusCode();
+        }
+
         public async Task Write(AlbumPhoto photo, CancellationToken ct)
         {
-            var photoEncodedPath = Encode($"{GPhotoFolderPath}/{Sanitize(photo.Name)}");
-            await UploadFile(photoEncodedPath, photo.Content, ct);
+            var path = $"{GPhotoFolderPath}/{photo.Name}";
+            await UploadFile(path, photo.Content, ct);
         }
 
         public void Dispose()
         {
             _http.Dispose();
+        }
+
+        static IAsyncPolicy<HttpResponseMessage> GetRetryPolicyForUpload()
+        {
+            return HttpPolicyExtensions
+                .HandleTransientHttpError()
+                .OrResult(msg => msg.StatusCode == HttpStatusCode.NotFound)
+                .WaitAndRetryAsync(5, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
         }
 
         private async Task<byte[]> DownloadFile(string path, CancellationToken ct)
@@ -97,9 +123,9 @@ namespace g2yx.Services
 
         private async Task UploadFile(string path, byte[] bytes, CancellationToken ct)
         {
-            var yResp = await GetJObject($"https://cloud-api.yandex.net/v1/disk/resources/upload?path={path}&overwrite=true", ct);
+            var yResp = await GetJObject($"https://cloud-api.yandex.net/v1/disk/resources/upload?path={Encode(path)}&overwrite=true", ct);
             var uploadUrl = yResp["href"].Value<string>();
-            var result = await _http.PutAsync(uploadUrl, new ByteArrayContent(bytes));
+            var result = await _uploadRetryPolicy.ExecuteAsync(() => _http.PutAsync(uploadUrl, new ByteArrayContent(bytes)));
             result.EnsureSuccessStatusCode();
         }
 
@@ -114,11 +140,6 @@ namespace g2yx.Services
             var responseContent = await response.Content.ReadAsStringAsync();
 
             return JsonConvert.DeserializeObject<JObject>(responseContent);
-        }
-
-        private static string Sanitize(string pathElement)
-        {
-            return pathElement.Replace("/", "\\/");
         }
 
         private static string Encode(string path)

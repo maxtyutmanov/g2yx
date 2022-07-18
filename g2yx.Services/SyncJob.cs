@@ -11,7 +11,7 @@ namespace g2yx.Services
     public class SyncJob
     {
         private static readonly TimeSpan ProgressUpdatePeriod = TimeSpan.FromMinutes(1);
-        private static readonly int DegreeOfUploadParallelism = 5;
+        private static readonly int DegreeOfUploadParallelism = 10;
 
         private readonly ILogger<SyncJob> _logger;
 
@@ -55,23 +55,30 @@ namespace g2yx.Services
             _logger.LogInformation("Starting sync. Previous sync pointer value: {SyncPointer}", syncPointer);
 
             var processedPhotosStream = reader.Read(syncPointer, ct)
-                .ProcessInParallel(UploadOnePhoto, degreeOfParallelism: 10, ct)
+                .ProcessInParallel(UploadOnePhoto, DegreeOfUploadParallelism, ct)
                 .MakeOrdered(ct)
                 .WithCancellation(ct);
 
             await foreach (var photo in processedPhotosStream)
             {
-                if ((DateTime.UtcNow - progressLastUpdatedAt) > ProgressUpdatePeriod)
+                if ((DateTime.UtcNow - progressLastUpdatedAt) > ProgressUpdatePeriod || photo.Content.Length > 20_000_000)
                 {
                     _logger.LogInformation("Updating progress (setting current sync pointer value to {SyncPointer})", photo.SyncPointer);
                     await writer.SetSyncPointer(photo.SyncPointer.ToString(), ct);
-                    // refresh lock if we're halfway to expiration
-                    await writer.EnsureLocked(ct);
+                    progressLastUpdatedAt = DateTime.UtcNow;
                 }
             }
 
             async Task UploadOnePhoto(AlbumPhoto photo)
             {
+                if (photo.Content.Length > 20_000_000)
+                {
+                    _logger.LogWarning("Uploading a large file (~{SizeInMb} MB) {FileName}", photo.Content.Length / 1_000_000, photo.Name);
+                }
+
+                if (photo.Folder != null)
+                    await writer.EnsureSubfolderCreated(photo.Folder, ct);
+
                 await writer.Write(photo, ct);
 
                 // refresh lock if we're halfway to expiration

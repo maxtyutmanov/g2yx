@@ -32,8 +32,10 @@ namespace g2yx.Services.Utils
                 }
 
                 // substitute "free" slot in tasks buffer with new task
-                taskPool[ixOfCompletedTask] = ProcessItem(item, seqNo);
+                taskPool[ixOfCompletedTask] = ProcessItem(item, ++seqNo);
             }
+
+            await Task.WhenAll(taskPool);
 
             async Task<(T item, long seqNo)> ProcessItem(T item, long seqNo)
             {
@@ -62,10 +64,7 @@ namespace g2yx.Services.Utils
 
         private static IEnumerable<(long, T)> EnsureOrder<T>(long lastProcessedSeqNo, SortedDictionary<long, T> processedItems)
         {
-            if (processedItems.Count == 0)
-                yield break;
-
-            while (processedItems.First().Key == lastProcessedSeqNo + 1)
+            while (processedItems.Count > 0 && processedItems.First().Key == lastProcessedSeqNo + 1)
             {
                 var (seqNo, item) = processedItems.First();
                 processedItems.Remove(seqNo);
